@@ -108,6 +108,16 @@ function save_markerdata(data::MarkerData, filepath::String; overwrite=false)
     CSV.write(filepath, data.df, append=true, delim='\t')
 end
 
+"""
+    filter!(data::MarkerData, header_name::String; min_frq=1, max_frq=80)
+
+Filter column `header_name` of `data` by first calculating a frequency representation 
+of the data using FFT and setting every frequency not between `min_frq` and `max_frq` (inclusive)
+to 0.
+Then the FFT data is reconstructed into an array of real numbers.
+
+This filtered result is written into the corresponding column of data.filtered_df.
+"""
 function filter!(data::MarkerData, header_name::String; min_frq=1, max_frq=80)
     fft_data = rfft(data.df[!, header_name])
 
