@@ -68,6 +68,7 @@ jobs:
           prefix: xvfb-run
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DISPLAY: :0
       - run: |
           julia --project=docs -e '
             using Documenter: DocMeta, doctest
