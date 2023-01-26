@@ -52,9 +52,4 @@ jobs:
       - uses: julia-actions/julia-docdeploy@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - run: |
-          julia --project=docs -e '
-            using Documenter: DocMeta, doctest
-            using FilterKinect
-            DocMeta.setdocmeta!(FilterKinect, :DocTestSetup, :(using FilterKinect); recursive=true)
-            doctest(FilterKinect)'
+      - run: julia --project=docs/ docs/make.jl
