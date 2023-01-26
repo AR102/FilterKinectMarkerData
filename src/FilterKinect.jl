@@ -125,6 +125,10 @@ function main(data::MarkerData)
         xlabel="time in s",
         ylabel="?"
     )
+    header = "HEAD_X"
+    x = data.df[!, :Time]
+    y = data.df[!, header]
+    lines!(ax, x, y)
     display(f)
 end
 
