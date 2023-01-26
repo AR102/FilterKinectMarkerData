@@ -65,7 +65,7 @@ jobs:
       - uses: julia-actions/julia-docdeploy@v1
         with:
           # https://github.com/julia-actions/julia-docdeploy#prefixing-the-julia-command
-          prefix: DISPLAY=:0 xvfb-run -s '-screen 0 1024x768x24'
+          prefix: xvfb-run
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: |
