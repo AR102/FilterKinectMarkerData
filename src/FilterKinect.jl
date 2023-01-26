@@ -69,9 +69,12 @@ end
 
 # Overload MarkerData to redirect getproperty to df
 Base.getproperty(obj::MarkerData, sym::Symbol) =
-    sym in [:df, :filehead] ? getfield(obj, sym) : getproperty(obj.df, sym)
+    sym in [:df, :filehead, :filtered_df] ? getfield(obj, sym) : getproperty(obj.df, sym)
 
-Base.isequal(x::MarkerData, y::MarkerData) = x.filehead == y.filehead && x.df == y.df
+Base.isequal(x::MarkerData, y::MarkerData) =
+    x.filehead == y.filehead && x.df == y.df && x.filtered_df == y.filtered_df
+
+Base.copy(d::MarkerData) = MarkerData(copy(d.filehead), copy(d.df), copy(d.filtered_df))
 
 """
     load_marker_data(path::String)
@@ -125,7 +128,7 @@ function filter!(data::MarkerData, header_name::String; min_frq=1, max_frq=80)
     # only set frequencies in range, meaning rest stays 0
     filtered_fft_data[min_frq:max_frq] = fft_data[min_frq:max_frq]
 
-    data.filtered_df[!, header_name] = irfft(filtered_fft_data, length(fft_data))
+    data.filtered_df[!, header_name] = irfft(filtered_fft_data, length(data.df[!, header_name]))
 end
 
 function main(data::MarkerData)

@@ -1,3 +1,4 @@
 {
-    "ltex.language": "en"
+    "ltex.language": "en",
+    "editor.rulers": [80]
 }
