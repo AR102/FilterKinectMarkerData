@@ -104,6 +104,7 @@ function save_markerdata(data::MarkerData, filepath::String; overwrite=false)
             write(io, line * "\n")
         end
     end
+    # append=true to avoid overwriting of file and writing of headers
     CSV.write(filepath, data.df, append=true, delim='\t')
 end
 
