@@ -1,3 +1,4 @@
 [deps]
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
 FilterKinect = "5447013d-5e90-4647-8683-c35b28e73fff"
+LiveServer = "16fef848-5104-11e9-1b77-fb7a48bbb589"
