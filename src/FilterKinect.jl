@@ -131,23 +131,107 @@ function filter!(data::MarkerData, header_name::String; min_frq=1, max_frq=80)
     data.filtered_df[!, header_name] = irfft(filtered_fft_data, length(data.df[!, header_name]))
 end
 
+
+"""
+    validate_min(value)
+
+Validate that new minimum frequency for filtering `value` is legal (not bigger
+than maximum `slider` currently has and not smaller than `min_possible`).
+"""
+function validate_min(value, slider, min_possible)
+    _, max_value = to_value(slider.interval)
+    return min_possible < value <= max_value
+end
+
+"""
+    validate_max(value)
+
+Validate that new maximum frequency for filtering `value` is legal (not smaller
+than minimum `slider` currently has and not bigger than `max_possible`).
+"""
+function validate_max(value, slider, max_possible)
+    min_value, _ = to_value(slider.interval)
+    return min_value < value <= max_possible
+end
+
 function main(data::MarkerData)
-    f = Figure()
-    ax = Axis(f[1, 1],
-        title="Test",
-        xlabel="time in s",
-        ylabel="?"
+    fig = Figure()
+    ax = Axis(fig[1:8, 1:5],
+    xlabel="time in s"
     )
-    header = "HEAD_X"
+    
+    # ignore first 2 headers as they are Time and Frame
+    options = zip(names(data.df)[3:end], names(data.df)[3:end])
+    marker_menu = Menu(fig[4:8, 6:8], options=options, valign=:top,
+        # to show more entries on one page to help with too slow scrolling
+        fontsize=10, textpadding=(5, 5, 5, 5)
+        )
+        
+    # cols = [Int[] for i in eachindex(options)]
+    # # String for column "Option"
+    # cols = [String, cols...]
+    # col_names = ["Option", options[1]...]
+
+    # filterconfig = DataFrame(cols, col_names)
+
+    min_possible = 1
+    #              s. docs rfft: n_fft = div(n,2) + 1
+    max_possible = Int(trunc(length(data.df[!, :Time]) / 2) + 1)
+
+    # labels for showing filter range
+    min_value_label = Label(fig[1, 6], string(min_possible))
+    max_value_label = Label(fig[1, 8], string(max_possible))
+    # slider for setting filter range
+    slider = IntervalSlider(fig[2, 6:8], range=range(min_possible, max_possible))
+
+    # update values of labels whenever slider is adjusted 
+    on(slider.interval) do interval
+        min_val, max_val = to_value(interval)
+        min_value_label.text = string(min_val)
+        max_value_label.text = string(max_val)
+    end
+
+    # Editable text boxes for setting filter range
+    min_value_box = Textbox(fig[3, 6], width=50)
+    max_value_box = Textbox(fig[3, 8], width=50)
+    # Validators make sure that entered value is an Int and in range
+    min_value_box.validator = str -> begin
+        val = tryparse(Int, str)
+        return val !== nothing && validate_min(val, slider, min_possible)
+    end
+    max_value_box.validator = str -> begin
+        val = tryparse(Int, str)
+        return val !== nothing && validate_max(val, slider, max_possible)
+    end
+
+    # Update range of slider when value texboxes are edited
+    on(min_value_box.stored_string) do str
+        min_val = parse(Int, str)
+        max_val = to_value(slider.interval)[2]
+        set_close_to!(slider, min_val, max_val)
+    end
+    on(max_value_box.stored_string) do str
+        min_val = to_value(slider.interval)[1]
+        max_val = parse(Int, str)
+        set_close_to!(slider, min_val, max_val)
+    end
+
     x = data.df[!, :Time]
-    y = data.df[!, header]
-    lines!(ax, x, y, label = "original data")
-    filter!(data, header)
-    x = data.filtered_df[!, :Time]
-    y = data.filtered_df[!, header]
-    lines!(ax, x, y, label = "filtered data")
+
+    # Draw original data of selected marker
+    original_y = lift(marker_menu.selection) do header
+        data.df[!, header]
+    end
+    lines!(ax, x, original_y, label="original data")
+
+    # Draw filtered data of selected marker
+    filtered_y = lift(slider.interval, marker_menu.selection) do interval, header
+        filter!(data, header, min_frq=interval[1], max_frq=interval[2])
+        return data.filtered_df[!, header]
+    end
+    lines!(ax, x, filtered_y, label="filtered data")
     axislegend(ax)
-    display(f)
+    display(fig)
 end
 
 end
