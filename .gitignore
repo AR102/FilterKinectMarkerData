@@ -3,3 +3,4 @@
 *.jl.mem
 /docs/build/
 src/test_file.trc
+test/tmp_test_file.trc
