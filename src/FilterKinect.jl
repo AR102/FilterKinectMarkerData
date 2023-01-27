@@ -141,7 +141,12 @@ function main(data::MarkerData)
     header = "HEAD_X"
     x = data.df[!, :Time]
     y = data.df[!, header]
-    lines!(ax, x, y)
+    lines!(ax, x, y, label = "original data")
+    filter!(data, header)
+    x = data.filtered_df[!, :Time]
+    y = data.filtered_df[!, header]
+    lines!(ax, x, y, label = "filtered data")
+    axislegend(ax)
     display(f)
 end
 
