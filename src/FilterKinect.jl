@@ -6,7 +6,8 @@ using DataFrames, CSV, FFTW, GLMakie
 """
     get_header_names(path::String)
 
-Return vector of header names as string and the first six lines of the file as tuple.
+Return vector of header names as string and the first six lines of the file as
+tuple.
 
 Example:
 
@@ -51,7 +52,8 @@ function get_header_names(path::String)
     header_names[1:2] = ["Frame", "Time"]
 
     i = 3 # because of Frame and Time
-    # Make MARKERNAME into MARKERNAME_X, MARKERNAME_Y and MARKERNAME_Z for every marker
+    # Make MARKERNAME into MARKERNAME_X, MARKERNAME_Y and MARKERNAME_Z for every
+    # marker
     for name in marker_names
         for appendix in ["_X", "_Y", "_Z"]
             header_names[i] = name * appendix
@@ -68,13 +70,19 @@ struct MarkerData
 end
 
 # Overload MarkerData to redirect getproperty to df
-Base.getproperty(obj::MarkerData, sym::Symbol) =
-    sym in [:df, :filehead, :filtered_df] ? getfield(obj, sym) : getproperty(obj.df, sym)
+function Base.getproperty(obj::MarkerData, sym::Symbol)
+    if sym in [:df, :filehead, :filtered_df]
+        getfield(obj, sym)
+    else
+        getproperty(obj.df, sym)
+    end
+end
 
 Base.isequal(x::MarkerData, y::MarkerData) =
     x.filehead == y.filehead && x.df == y.df && x.filtered_df == y.filtered_df
 
-Base.copy(d::MarkerData) = MarkerData(copy(d.filehead), copy(d.df), copy(d.filtered_df))
+Base.copy(d::MarkerData) =
+    MarkerData(copy(d.filehead), copy(d.df), copy(d.filtered_df))
 
 """
     load_marker_data(path::String)
@@ -96,12 +104,14 @@ end
 
 Save `data` in file at `filepath`. 
 
-`overwrite`: If false and the file already exists or it's a folder,
-an exception will be thrown. If true, the file gets completely overwritten instead.
+`overwrite`: If false and the file already exists or it's a folder, an exception
+will be thrown. If true, the file gets completely overwritten instead.
 The default is false.
 """
 function save_markerdata(data::MarkerData, filepath::String; overwrite=false)
-    !overwrite && (isfile(filepath) || isdir(filepath)) ? throw(ArgumentError("$filepath already exists!")) :
+    if !overwrite && (isfile(filepath) || isdir(filepath))
+        throw(ArgumentError("$filepath already exists!"))
+    end
     io = open(filepath, write=true, truncate=true, create=true) do io
         for line in data.filehead
             write(io, line * "\n")
@@ -114,12 +124,13 @@ end
 """
     filter!(data::MarkerData, header_name::String; min_frq=1, max_frq=80)
 
-Filter column `header_name` of `data` by first calculating a frequency representation 
-of the data using FFT and setting every frequency not between `min_frq` and `max_frq` (inclusive)
-to 0.
+Filter column `header_name` of `data` by first calculating a frequency 
+representation of the data using FFT and setting every frequency not between 
+`min_frq` and `max_frq` (inclusive) to 0.
 Then the FFT data is reconstructed into an array of real numbers.
 
-This filtered result is written into the corresponding column of data.filtered_df.
+This filtered result is written into the corresponding column of 
+data.filtered_df.
 """
 function filter!(data::MarkerData, header_name::String; min_frq=1, max_frq=80)
     fft_data = rfft(data.df[!, header_name])
@@ -128,7 +139,9 @@ function filter!(data::MarkerData, header_name::String; min_frq=1, max_frq=80)
     # only set frequencies in range, meaning rest stays 0
     filtered_fft_data[min_frq:max_frq] = fft_data[min_frq:max_frq]
 
-    data.filtered_df[!, header_name] = irfft(filtered_fft_data, length(data.df[!, header_name]))
+    data.filtered_df[!, header_name] = irfft(
+        filtered_fft_data, length(data.df[!, header_name])
+    )
 end
 
 
@@ -157,16 +170,16 @@ end
 function main(data::MarkerData)
     fig = Figure()
     ax = Axis(fig[1:8, 1:5],
-    xlabel="time in s"
+        xlabel="time in s"
     )
-    
+
     # ignore first 2 headers as they are Time and Frame
     options = zip(names(data.df)[3:end], names(data.df)[3:end])
     marker_menu = Menu(fig[4:8, 6:8], options=options, valign=:top,
         # to show more entries on one page to help with too slow scrolling
         fontsize=10, textpadding=(5, 5, 5, 5)
-        )
-        
+    )
+
     # cols = [Int[] for i in eachindex(options)]
     # # String for column "Option"
     # cols = [String, cols...]
@@ -230,6 +243,7 @@ function main(data::MarkerData)
         return data.filtered_df[!, header]
     end
     lines!(ax, x, filtered_y, label="filtered data")
+
     axislegend(ax)
     display(fig)
 end
