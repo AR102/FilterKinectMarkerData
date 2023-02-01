@@ -167,29 +167,71 @@ function validate_max(value, slider, max_possible)
     return min_value < value <= max_possible
 end
 
+struct FilterConfig
+    df::DataFrame
+end
+
+function FilterConfig(markernames, optionnames, optiontypes, optionvalues)
+    col_names = ["MarkerName", optionnames...]
+    cols = [String[], optiontypes...]
+    df = DataFrame(cols, col_names)
+    for markername in markernames
+        push!(df, [markername, optionvalues...])
+    end
+    return FilterConfig(df)
+end
+
+"""
+    getrow(df::DataFrame, markername)
+
+Return the row of the given marker (as a view).
+"""
+function getrow(df::DataFrame, markername)
+    # create subset of df containing the one row with the same marker name
+    return subset(df, :MarkerName => name -> name .== string(markername),
+        view=true) # not a copy, but a reference
+end
+
+"""
+    getoption(filterconfig::FilterConfig, markername, option)
+
+Return value of option `option` for marker `markername` saved in `filterconfig`.
+"""
+function getoption(filterconfig::FilterConfig, markername, option)
+    row = getrow(filterconfig.df, markername)
+    return row[1, option]
+end
+
+"""
+    setoption(filterconfig::FilterConfig, markername, option, value)
+
+Set option `option` for marker `markername` in `filterconfig` to given `value`.
+"""
+function setoption(filterconfig::FilterConfig, markername, option, value)
+    global row = getrow(filterconfig.df, markername)
+    row[1, option] = value
+end
+
 function main(data::MarkerData)
     fig = Figure()
-    ax = Axis(fig[1:8, 1:5],
-        xlabel="time in s"
-    )
+    display(fig)
+
+    ax = Axis(fig[1:8, 1:5], xlabel="time in s")
 
     # ignore first 2 headers as they are Time and Frame
-    options = zip(names(data.df)[3:end], names(data.df)[3:end])
-    marker_menu = Menu(fig[4:8, 6:8], options=options, valign=:top,
-        # to show more entries on one page to help with too slow scrolling
-        fontsize=10, textpadding=(5, 5, 5, 5)
-    )
-
-    # cols = [Int[] for i in eachindex(options)]
-    # # String for column "Option"
-    # cols = [String, cols...]
-    # col_names = ["Option", options[1]...]
-
-    # filterconfig = DataFrame(cols, col_names)
+    markernames = names(data.df)[3:end]
 
     min_possible = 1
-    #              s. docs rfft: n_fft = div(n,2) + 1
+    # see docs rfft: n_fft = div(n,2) + 1
     max_possible = Int(trunc(length(data.df[!, :Time]) / 2) + 1)
+
+    # create filterconfig for storing individual filtering options for each
+    # marker
+    optionnames = ["MinFrqFFT", "MaxFrqFFT"]
+    optiontypes = [Int[], Int[]]
+    optionvalues = [min_possible, max_possible]
+    filterconfig = FilterConfig(
+        markernames, optionnames, optiontypes, optionvalues)
 
     # labels for showing filter range
     min_value_label = Label(fig[1, 6], string(min_possible))
@@ -229,6 +271,18 @@ function main(data::MarkerData)
         set_close_to!(slider, min_val, max_val)
     end
 
+    options = zip(markernames, markernames)
+    marker_menu = Menu(fig[4:8, 6:8], options=options, valign=:top,
+        # to show more entries on one page to help with too slow scrolling
+        fontsize=10, textpadding=(5, 5, 5, 5)
+    )
+    on(marker_menu.selection) do markername
+        set_close_to!(slider,
+            getoption(filterconfig, markername, :MinFrqFFT),
+            getoption(filterconfig, markername, :MaxFrqFFT)
+        )
+    end
+
     x = data.df[!, :Time]
 
     # Draw original data of selected marker
@@ -238,14 +292,16 @@ function main(data::MarkerData)
     lines!(ax, x, original_y, label="original data")
 
     # Draw filtered data of selected marker
-    filtered_y = lift(slider.interval, marker_menu.selection) do interval, header
-        filter!(data, header, min_frq=interval[1], max_frq=interval[2])
-        return data.filtered_df[!, header]
+    filtered_y = lift(slider.interval, marker_menu.selection) do interval, markername
+        min_frq, max_frq = interval
+        setoption(filterconfig, markername, :MinFrqFFT, min_frq)
+        setoption(filterconfig, markername, :MaxFrqFFT, max_frq)
+        filter!(data, markername, min_frq=min_frq[1], max_frq=max_frq)
+        return data.filtered_df[!, markername]
     end
     lines!(ax, x, filtered_y, label="filtered data")
 
     axislegend(ax)
-    display(fig)
 end
 
 end
