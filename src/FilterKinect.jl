@@ -277,10 +277,13 @@ function main(data::MarkerData)
         fontsize=10, textpadding=(5, 5, 5, 5)
     )
     on(marker_menu.selection) do markername
+        # set slider to saved filtering options
         set_close_to!(slider,
             getoption(filterconfig, markername, :MinFrqFFT),
             getoption(filterconfig, markername, :MaxFrqFFT)
         )
+        # update plot limits
+        autolimits!(ax)
     end
 
     x = data.df[!, :Time]
