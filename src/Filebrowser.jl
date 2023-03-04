@@ -67,10 +67,8 @@ function save_dialogue(::Type{Linux}, extension=nothing)
     comm = `zenity --file-selection --save --confirm-overwrite $arg`
     # remove quotes
     cmd = `$comm`
-    filepath = String(read(cmd))
-    @info filepath
-    filepath = strip(filepath)
 
+    filepath = String(read(cmd)) |> strip
     filepath = assure_extension(filepath, extension)
 
     return filepath
@@ -85,7 +83,7 @@ function load_dialogue(::Type{Linux}, filepattern=nothing)
     comm = `zenity --file-selection $arg`
     # remove quotes
     cmd = `$comm`
-    return String(read(cmd))
+    return String(read(cmd)) |> strip
 end
 
 function save_dialogue(extension=nothing)
@@ -95,14 +93,5 @@ end
 
 function load_dialogue(filepattern=nothing)
     filepath = load_dialogue(get_systype(), filepattern)
-    dir, file = splitdir(strip(filepath, ['\r', '\n']))
-    # file extension; ignore leading "*"
-    # append extension to file if not already there
-    if filepattern !== nothing
-        extension = filepattern[2:end]
-        if !extension_matches(file, extension)
-            file *= extension
-        end
-    end
-    return dir, file
+    return splitdir(strip(filepath, ['\r', '\n']))
 end
