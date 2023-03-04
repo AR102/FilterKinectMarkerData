@@ -1,7 +1,9 @@
 module FilterKinect
-export load_markerdata, save_markerdata, main
+export load_markerdata, save, main
 
 using DataFrames, CSV, FFTW, GLMakie
+
+include("Filebrowser.jl")
 
 """
     get_header_names(path::String)
@@ -84,6 +86,9 @@ Base.isequal(x::MarkerData, y::MarkerData) =
 Base.copy(d::MarkerData) =
     MarkerData(copy(d.filehead), copy(d.df), copy(d.filtered_df))
 
+""" Return an empty MarkerData object with no contents. """
+empty_markerdata() = MarkerData([], DataFrames.DataFrame(), DataFrames.DataFrame())
+
 """
     load_marker_data(path::String)
 
@@ -108,17 +113,35 @@ Save `data` in file at `filepath`.
 will be thrown. If true, the file gets completely overwritten instead.
 The default is false.
 """
-function save_markerdata(data::MarkerData, filepath::String; overwrite=false)
+function save(data::MarkerData, filepath::String; overwrite=false, filtered = false)
     if !overwrite && (isfile(filepath) || isdir(filepath))
         throw(ArgumentError("$filepath already exists!"))
     end
+
+    first_line = CSV.read(IOBuffer(data.filehead[1]), DataFrame,
+        header=false, ignorerepeated=true, # because of possible padding
+        delim='\t',
+    )
+    # if last column has Missing type (can happen with trailing delimiters),
+    # then remove it
+    if eltype(first_line[!, end]) <: Missing
+        first_line = first_line[!, 1:end-1]
+    end
+    # update last column (filename) to current filename
+    first_line[1, end] = splitdir(filepath)[2]
+
     io = open(filepath, write=true, truncate=true, create=true) do io
-        for line in data.filehead
+        # write updated first line
+        CSV.write(io, first_line, writeheader=false, delim='\t')
+        # write rest
+        for line in data.filehead[2:end]
             write(io, line * "\n")
         end
     end
+
+    df = filtered ? data.filtered_df : data.df
     # append=true to avoid overwriting of file and writing of headers
-    CSV.write(filepath, data.df, append=true, delim='\t')
+    CSV.write(filepath, df, append=true, delim='\t')
 end
 
 """
@@ -212,44 +235,37 @@ function setoption(filterconfig::FilterConfig, markername, option, value)
     row[1, option] = value
 end
 
-function main(data::MarkerData)
-    fig = Figure()
-    display(fig)
+save(filterconfig::FilterConfig, path::String) = CSV.write(path, filterconfig.df)
 
+load_filterconfig(path::String) = FilterConfig(CSV.read(path, DataFrame))
+
+function main()
+    global data = Observable(empty_markerdata())
+    global filterconfig = Observable(FilterConfig(DataFrames.DataFrame()))
+    # x values for plotting; defined here to bring into scope (see data handler)
+    local x
+
+    @info "Starting UI..."
+    #-----------------------------------------------
+    #------------------ LAYOUT ---------------------
+    #-----------------------------------------------
+    fig = Figure()
+
+    # plot for displaying data
     ax = Axis(fig[1:8, 1:5], xlabel="time in s")
 
-    # ignore first 2 headers as they are Time and Frame
-    markernames = names(data.df)[3:end]
-
-    min_possible = 1
-    # see docs rfft: n_fft = div(n,2) + 1
-    max_possible = Int(trunc(length(data.df[!, :Time]) / 2) + 1)
-
-    # create filterconfig for storing individual filtering options for each
-    # marker
-    optionnames = ["MinFrqFFT", "MaxFrqFFT"]
-    optiontypes = [Int[], Int[]]
-    optionvalues = [min_possible, max_possible]
-    filterconfig = FilterConfig(
-        markernames, optionnames, optiontypes, optionvalues)
+    # slider for setting filter range
+    slider = IntervalSlider(fig[2, 6:8])
+    slider.interval.ignore_equal_values = true
 
     # labels for showing filter range
-    min_value_label = Label(fig[1, 6], string(min_possible))
-    max_value_label = Label(fig[1, 8], string(max_possible))
-    # slider for setting filter range
-    slider = IntervalSlider(fig[2, 6:8], range=range(min_possible, max_possible))
+    min_value_label = Label(fig[1, 6], "")
+    max_value_label = Label(fig[1, 8], "")
 
-    # update values of labels whenever slider is adjusted 
-    on(slider.interval) do interval
-        min_val, max_val = to_value(interval)
-        min_value_label.text = string(min_val)
-        max_value_label.text = string(max_val)
-    end
-
-    # Editable text boxes for setting filter range
+    # editable text boxes for setting filter range
     min_value_box = Textbox(fig[3, 6], width=50)
     max_value_box = Textbox(fig[3, 8], width=50)
-    # Validators make sure that entered value is an Int and in range
+    # validators make sure that entered value is an Int and in range
     min_value_box.validator = str -> begin
         val = tryparse(Int, str)
         return val !== nothing && validate_min(val, slider, min_possible)
@@ -259,52 +275,141 @@ function main(data::MarkerData)
         return val !== nothing && validate_max(val, slider, max_possible)
     end
 
-    # Update range of slider when value texboxes are edited
-    on(min_value_box.stored_string) do str
-        min_val = parse(Int, str)
-        max_val = to_value(slider.interval)[2]
-        set_close_to!(slider, min_val, max_val)
-    end
-    on(max_value_box.stored_string) do str
-        min_val = to_value(slider.interval)[1]
-        max_val = parse(Int, str)
-        set_close_to!(slider, min_val, max_val)
-    end
-
-    options = zip(markernames, markernames)
-    marker_menu = Menu(fig[4:8, 6:8], options=options, valign=:top,
+    # menu for selecting a marker
+    marker_menu = Menu(fig[4:8, 6:8], valign=:top,
         # to show more entries on one page to help with too slow scrolling
         fontsize=10, textpadding=(5, 5, 5, 5)
     )
-    on(marker_menu.selection) do markername
-        # set slider to saved filtering options
-        set_close_to!(slider,
-            getoption(filterconfig, markername, :MinFrqFFT),
-            getoption(filterconfig, markername, :MaxFrqFFT)
-        )
-        # update plot limits
-        autolimits!(ax)
+
+    # Buttons for saving & loading data
+    Label(fig[5, 6], "Marker Data", halign=:right)
+    savebutton_data = Button(fig[5, 7], label="Save Filtered", fontsize=11, halign=:left)
+    loadbutton_data = Button(fig[5, 8], label="Load Raw", fontsize=11, halign=:left)
+    Label(fig[6, 6], "Filter Configuration")
+    savebutton_config = Button(fig[6, 7], label="Save", fontsize=11, halign=:left)
+    loadbutton_config = Button(fig[6, 8], label="Load", fontsize=11, halign=:left)
+
+    #-----------------------------------------------
+    #-------------- EVENT HANDLERS -----------------
+    #-----------------------------------------------
+    # update plots by notifying these Observables
+    filtered_plot_update = Observable(nothing)
+    raw_plot_update = Observable(nothing)
+    # open explorer windows for selecting file and load data from selected file
+    on(loadbutton_data.clicks) do _
+        path = joinpath(load_dialogue("*.trc")...)
+        @info "Loading data..."
+        data[] = load_markerdata(path)
+        @info "Data loaded!"
+        notify(raw_plot_update)
+        notify(filtered_plot_update)
+    end
+    # handler for loaded data
+    on(data, priority=1000) do data
+        x = data.df[!, :Time]
+        # ignore first 2 headers as they are Time and Frame
+        global markernames = names(data.df)[3:end]
+        
+        min_possible = 1
+        # see docs rfft: n_fft = div(n,2) + 1
+        max_possible = Int(trunc(length(data.df[!, :Time]) / 2) + 1)
+        # create `filterconfig` for storing individual filtering options for each
+        # marker; this must be before setting marker_menu.i_selected, as that
+        # updates filtered_y etc. which need filterconfig
+        optionnames = ["MinFrqFFT", "MaxFrqFFT"]
+        optiontypes = [Int[], Int[]]
+        optionvalues = [min_possible, max_possible]
+        filterconfig[] = FilterConfig(markernames, optionnames, optiontypes, optionvalues)
+        
+        marker_menu.options[] = zip(markernames, markernames)
+
+        slider.range[] = range(min_possible, max_possible)
+        set_close_to!(slider, min_possible, max_possible)
+        
+        @info "data done!"
     end
 
-    x = data.df[!, :Time]
+    # Update range of slider when value texboxes are edited
+    on(min_value_box.stored_string) do str
+        min_val = parse(Int, str)
+        _, max_val = slider.interval[]
+        set_close_to!(slider, min_val, max_val)
+    end
+    on(max_value_box.stored_string) do str
+        max_val = parse(Int, str)
+        min_val, _ = slider.interval[]
+        set_close_to!(slider, min_val, max_val)
+    end
 
-    # Draw original data of selected marker
-    original_y = lift(marker_menu.selection) do header
-        data.df[!, header]
+    # if no marker is selected, select first one
+    on(marker_menu.selection, priority=999) do _
+        if marker_menu.selection[] === nothing
+            marker_menu.i_selected[] = 1
+            notify(raw_plot_update)
+        end
+    end
+    # after selecting new marker, update raw data plot + slider interval
+    on(marker_menu.selection, priority=-1) do _
+        notify(raw_plot_update)
+        min_frq = getoption(filterconfig[], marker_menu.selection[], :MinFrqFFT)
+        max_frq = getoption(filterconfig[], marker_menu.selection[], :MaxFrqFFT)
+        set_close_to!(slider, min_frq, max_frq)
+        notify(filtered_plot_update)
+    end
+
+    # update labels to always show current slider interval
+    on(slider.interval) do (min_frq, max_frq)
+        min_value_label.text = string(min_frq)
+        max_value_label.text = string(max_frq)
+    end
+    # update filter config whenever slider is adjusted
+    on(slider.interval) do (min_frq, max_frq)
+        setoption(filterconfig[], marker_menu.selection[], :MinFrqFFT, min_frq)
+        setoption(filterconfig[], marker_menu.selection[], :MaxFrqFFT, max_frq)
+        notify(filtered_plot_update)
+    end
+
+    on(savebutton_data.clicks) do _
+        path = joinpath(save_dialogue("*.trc")...)
+        # overwrite because save_dialogue should already warn and ask user about
+        # overwrite
+        save(data[], path, overwrite=true, filtered=true)
+    end
+    on(savebutton_config.clicks) do _
+        path = joinpath(save_dialogue("*.cfg")...)
+        save(filterconfig[], path)
+    end
+    on(loadbutton_config.clicks) do _
+        @info "load config..."
+        path = joinpath(load_dialogue("*.cfg")...)
+        filterconfig[] = load_filterconfig(path)
+        # notify listeners of marker_menu as it also necesitates getting current
+        # filter config (for current marker)
+        notify(marker_menu.selection)
+    end
+
+    display(fig) # show gui
+    notify(loadbutton_data.clicks) # ask user for inital file
+
+    # draw original data of selected marker
+    original_y = lift(raw_plot_update) do _
+        data[].df[!, marker_menu.selection[]]
     end
     lines!(ax, x, original_y, label="original data")
 
     # Draw filtered data of selected marker
-    filtered_y = lift(slider.interval, marker_menu.selection) do interval, markername
-        min_frq, max_frq = interval
-        setoption(filterconfig, markername, :MinFrqFFT, min_frq)
-        setoption(filterconfig, markername, :MaxFrqFFT, max_frq)
-        filter!(data, markername, min_frq=min_frq[1], max_frq=max_frq)
-        return data.filtered_df[!, markername]
+    filtered_y = lift(filtered_plot_update) do _
+        markername = marker_menu.selection[]
+        min_frq = getoption(filterconfig[], markername, :MinFrqFFT)
+        max_frq = getoption(filterconfig[], markername, :MaxFrqFFT)
+        filter!(data[], markername, min_frq=min_frq[1], max_frq=max_frq)
+        return data[].filtered_df[!, markername]
     end
     lines!(ax, x, filtered_y, label="filtered data")
-
-    axislegend(ax)
+    axislegend(ax) # draw legend
 end
+
+# path = "test/test_file.trc"
+# d = load_markerdata(path)
 
 end
