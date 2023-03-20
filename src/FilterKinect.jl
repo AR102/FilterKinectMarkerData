@@ -239,11 +239,12 @@ save(filterconfig::FilterConfig, path::String) = CSV.write(path, filterconfig.df
 
 load_filterconfig(path::String) = FilterConfig(CSV.read(path, DataFrame))
 
-function main()
+function julia_main()::Cint
     global data = Observable(empty_markerdata())
     global filterconfig = Observable(FilterConfig(DataFrames.DataFrame()))
-    # x values for plotting; defined here to bring into scope (see data handler)
-    local x
+    # x values for plotting, min fft frq possible, max fft frq possible;
+    # defined here to bring into scope (see data handler)
+    local x, min_possible, max_possible
 
     @info "Starting UI..."
     #-----------------------------------------------
@@ -309,7 +310,7 @@ function main()
         x = data.df[!, :Time]
         # ignore first 2 headers as they are Time and Frame
         global markernames = names(data.df)[3:end]
-        
+
         min_possible = 1
         # see docs rfft: n_fft = div(n,2) + 1
         max_possible = Int(trunc(length(data.df[!, :Time]) / 2) + 1)
@@ -320,12 +321,12 @@ function main()
         optiontypes = [Int[], Int[]]
         optionvalues = [min_possible, max_possible]
         filterconfig[] = FilterConfig(markernames, optionnames, optiontypes, optionvalues)
-        
+
         marker_menu.options[] = zip(markernames, markernames)
 
         slider.range[] = range(min_possible, max_possible)
         set_close_to!(slider, min_possible, max_possible)
-        
+
         @info "data done!"
     end
 
@@ -407,6 +408,10 @@ function main()
     end
     lines!(ax, x, filtered_y, label="filtered data")
     axislegend(ax) # draw legend
+    while true
+        sleep(1)
+    end
+    return 0 # if things finished successfully
 end
 
 # path = "test/test_file.trc"
