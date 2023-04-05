@@ -277,10 +277,7 @@ function julia_main()::Cint
     end
 
     # menu for selecting a marker
-    marker_menu = Menu(fig[4:8, 6:8], valign=:top,
-        # to show more entries on one page to help with too slow scrolling
-        fontsize=10, textpadding=(5, 5, 5, 5)
-    )
+    marker_menu = Menu(fig[4:8, 6:8], valign=:top)
 
     # Buttons for saving & loading data
     Label(fig[5, 6], "Marker Data", halign=:right)
