@@ -1,4 +1,4 @@
-# Future Development -- Plans
+# Future development -- Plans
 
 See the [issues page](https://github.com/AR102/FilterKinect.jl/issues) and the
 [project board](https://github.com/users/AR102/projects/4) for more up-to-date

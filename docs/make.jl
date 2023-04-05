@@ -19,7 +19,7 @@ makedocs(;
         "installation.md",
         "usage.md",
         "troubleshooting.md",
-        "Development" => ["code_docs.md", "future.md"]
+        "Development" => ["tools_for_devs.md", "code_docs.md", "future.md"]
     ]
 )
 
