@@ -1,5 +1,11 @@
 # Troubleshooting
 
+## Recompiling the package system image
+
+If you want to recompile the system image of the dependencies, for example
+because you updated a package, then simply delete the current one
+(`FilterKinect.jl/JuliaSysimage.so`) and start the program again.
+
 ## GLMakie not compiling
 
 If you are on a Linux system, you could get an error like 

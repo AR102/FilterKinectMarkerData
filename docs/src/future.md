@@ -1,5 +1,11 @@
-# Future Development
-## New Features
+# Future Development -- Plans
+
+See the [issues page](https://github.com/AR102/FilterKinect.jl/issues) and the
+[project board](https://github.com/users/AR102/projects/4) for more up-to-date
+information.
+## New Features / additions
+
+- description and explanation of the algorithm used for filtering at
 
 ## Known Problems
 

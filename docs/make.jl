@@ -12,15 +12,18 @@ makedocs(;
         prettyurls=get(ENV, "CI", "false") == "true",
         canonical="https://AR102.github.io/FilterKinect.jl",
         edit_link="main",
-        assets=String[],
+        assets=String[]
     ),
     pages=[
-        "Home" => "index.md",
-        "Troubleshooting" => "troubleshooting.md"
-    ],
+        "index.md",
+        "installation.md",
+        "usage.md",
+        "troubleshooting.md",
+        "Development" => ["code_docs.md", "future.md"]
+    ]
 )
 
 deploydocs(;
     repo="github.com/AR102/FilterKinect.jl",
-    devbranch="main",
+    devbranch="main"
 )
