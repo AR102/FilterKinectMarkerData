@@ -301,7 +301,7 @@ function julia_main()::Cint
         path = joinpath(load_dialogue("*.trc")...)
         @info "Loading data..."
         data[] = load_markerdata(path)
-        @info "Data loaded!"
+        @info "Plotting..."
         notify(raw_plot_update)
         notify(filtered_plot_update)
     end
@@ -379,7 +379,6 @@ function julia_main()::Cint
         save(filterconfig[], path)
     end
     on(loadbutton_config.clicks) do _
-        @info "load config..."
         path = joinpath(load_dialogue("*.cfg")...)
         filterconfig[] = load_filterconfig(path)
         # notify listeners of marker_menu as it also necesitates getting current
@@ -388,6 +387,7 @@ function julia_main()::Cint
     end
 
     display(fig) # show gui
+    @info "Please select a .trc file with the motion data!"
     notify(loadbutton_data.clicks) # ask user for inital file
 
     # draw original data of selected marker
@@ -406,6 +406,7 @@ function julia_main()::Cint
     end
     lines!(ax, x, filtered_y, label="filtered data")
     axislegend(ax) # draw legend
+    @info "Done!"
     while true
         sleep(1)
     end
