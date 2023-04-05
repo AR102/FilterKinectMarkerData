@@ -326,8 +326,6 @@ function julia_main()::Cint
 
         slider.range[] = range(min_possible, max_possible)
         set_close_to!(slider, min_possible, max_possible)
-
-        @info "data done!"
     end
 
     # Update range of slider when value texboxes are edited
