@@ -1,4 +1,5 @@
 .vscode
+*.so
 
 *.jl.*.cov
 *.jl.cov
