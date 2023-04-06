@@ -2,10 +2,25 @@ using FilterKinect
 using Test
 using ReferenceTests
 
-dir = "tmp/" #mktempdir()
-isfile(joinpath(dir, "test_file.trc")) && rm(joinpath(dir, "test_file.trc"))
-isdir(dir) && rm(dir)
-mkdir(dir)
+"""
+If `false` (default) , create a temporary directory for the tests. 
+This directory will be automatically deleted after the program has run.
+
+If `true`, use a local directory `tmp/` instead. This is helpful when debugging the tests as
+it allows to look at files produced by the tests.
+"""
+TESTS_USE_LOCAL_DIR = false
+
+isfile("../dev.jl") && include("../dev.jl")
+
+if TESTS_USE_LOCAL_DIR
+    dir = "tmp/"
+    isfile(joinpath(dir, "test_file.trc")) && rm(joinpath(dir, "test_file.trc"))
+    isdir(dir) && rm(dir)
+    mkdir(dir)
+else
+    dir = mktempdir()
+end
 
 @info dir
 @testset "FilterKinect.jl" begin
