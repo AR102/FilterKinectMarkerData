@@ -79,9 +79,32 @@ function Base.getproperty(obj::MarkerData, sym::Symbol)
     end
 end
 
-function Base.:(==)(x::MarkerData, y::MarkerData)
-    return x.filehead == y.filehead && x.df == y.df && x.filtered_df == y.filtered_df
+function compare(x::MarkerData, y::MarkerData; ignore_filename=true)
+    # special processing of first line necessary because of two problems:
+    #   1. when writing file, trailing tabs can get removed
+    #   2. last element (file name) will most often be different even though data may be the
+    #      same
+
+    # make tuple of first line of file heads
+    first_lines = (x.filehead[1], y.filehead[1])
+    # remove trailing tabs
+    first_lines = rstrip.(first_lines)
+    # elements are divided by tabs; split each string into array of elements
+    first_lines = split.(first_lines, '\t')
+    if ignore_filename
+        # remove last element (file name)
+        pop!.(first_lines)
+    end
+    # if remaining elements arent equal, data isn't equal
+    first_lines[1] != first_lines[2] && return false
+
+    # compare remaining lines of filehead and data itself
+    return x.filehead[2:end] == y.filehead[2:end] &&
+           x.df == y.df &&
+           x.filtered_df == y.filtered_df
 end
+
+Base.:(==)(x::MarkerData, y::MarkerData) = compare(x, y)
 
 Base.copy(d::MarkerData) = MarkerData(copy(d.filehead), copy(d.df), copy(d.filtered_df))
 
