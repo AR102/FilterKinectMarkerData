@@ -36,7 +36,6 @@ function filebrowser(::Type{Linux})
 end
 =#
 
-
 """
     check_extension(file::String, extension::String)
     check_extension(file::String, extension::Nothing)
@@ -44,7 +43,7 @@ end
 Check if given String `file` ends in `extension`.
 """
 function extension_matches(filepath::AbstractString, extension::AbstractString)
-    return filepath[end-length(extension)+1:end] == extension
+    return filepath[(end - length(extension) + 1):end] == extension
 end
 
 function assure_extension(filepath::AbstractString, extension::AbstractString)
@@ -68,7 +67,7 @@ function save_dialogue(::Type{Linux}, extension=nothing)
     # remove quotes
     cmd = `$comm`
 
-    filepath = String(read(cmd)) |> strip
+    filepath = strip(String(read(cmd)))
     filepath = assure_extension(filepath, extension)
 
     return filepath
@@ -83,7 +82,7 @@ function load_dialogue(::Type{Linux}, filepattern=nothing)
     comm = `zenity --file-selection $arg`
     # remove quotes
     cmd = `$comm`
-    return String(read(cmd)) |> strip
+    return strip(String(read(cmd)))
 end
 
 function save_dialogue(extension=nothing)

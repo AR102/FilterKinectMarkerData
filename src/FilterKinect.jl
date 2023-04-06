@@ -80,11 +80,11 @@ function Base.getproperty(obj::MarkerData, sym::Symbol)
     end
 end
 
-Base.isequal(x::MarkerData, y::MarkerData) =
-    x.filehead == y.filehead && x.df == y.df && x.filtered_df == y.filtered_df
+function Base.isequal(x::MarkerData, y::MarkerData)
+    return x.filehead == y.filehead && x.df == y.df && x.filtered_df == y.filtered_df
+end
 
-Base.copy(d::MarkerData) =
-    MarkerData(copy(d.filehead), copy(d.df), copy(d.filtered_df))
+Base.copy(d::MarkerData) = MarkerData(copy(d.filehead), copy(d.df), copy(d.filtered_df))
 
 """ Return an empty MarkerData object with no contents. """
 empty_markerdata() = MarkerData([], DataFrames.DataFrame(), DataFrames.DataFrame())
@@ -95,9 +95,11 @@ empty_markerdata() = MarkerData([], DataFrames.DataFrame(), DataFrames.DataFrame
 Load coordinate data from a .trc file. Return a `ModelData` object.
 """
 function load_markerdata(path::String)
-    df = CSV.read(path, DataFrame,
+    df = CSV.read(
+        path,
+        DataFrame;
         skipto=7, # ignore first six lines
-        header=false # we'll provide our own later
+        header=false, # we'll provide our own later
     )
     header_names, filehead = get_header_names(path)
     rename!(df, header_names)
@@ -113,26 +115,29 @@ Save `data` in file at `filepath`.
 will be thrown. If true, the file gets completely overwritten instead.
 The default is false.
 """
-function save(data::MarkerData, filepath::String; overwrite=false, filtered = false)
+function save(data::MarkerData, filepath::String; overwrite=false, filtered=false)
     if !overwrite && (isfile(filepath) || isdir(filepath))
         throw(ArgumentError("$filepath already exists!"))
     end
 
-    first_line = CSV.read(IOBuffer(data.filehead[1]), DataFrame,
-        header=false, ignorerepeated=true, # because of possible padding
+    first_line = CSV.read(
+        IOBuffer(data.filehead[1]),
+        DataFrame;
+        header=false,
+        ignorerepeated=true, # because of possible padding
         delim='\t',
     )
     # if last column has Missing type (can happen with trailing delimiters),
     # then remove it
     if eltype(first_line[!, end]) <: Missing
-        first_line = first_line[!, 1:end-1]
+        first_line = first_line[!, 1:(end - 1)]
     end
     # update last column (filename) to current filename
     first_line[1, end] = splitdir(filepath)[2]
 
-    io = open(filepath, write=true, truncate=true, create=true) do io
+    io = open(filepath; write=true, truncate=true, create=true) do io
         # write updated first line
-        CSV.write(io, first_line, writeheader=false, delim='\t')
+        CSV.write(io, first_line; writeheader=false, delim='\t')
         # write rest
         for line in data.filehead[2:end]
             write(io, line * "\n")
@@ -141,7 +146,7 @@ function save(data::MarkerData, filepath::String; overwrite=false, filtered = fa
 
     df = filtered ? data.filtered_df : data.df
     # append=true to avoid overwriting of file and writing of headers
-    CSV.write(filepath, df, append=true, delim='\t')
+    return CSV.write(filepath, df; append=true, delim='\t')
 end
 
 """
@@ -162,11 +167,10 @@ function filter!(data::MarkerData, header_name::String; min_frq=1, max_frq=80)
     # only set frequencies in range, meaning rest stays 0
     filtered_fft_data[min_frq:max_frq] = fft_data[min_frq:max_frq]
 
-    data.filtered_df[!, header_name] = irfft(
+    return data.filtered_df[!, header_name] = irfft(
         filtered_fft_data, length(data.df[!, header_name])
     )
 end
-
 
 """
     validate_min(value)
@@ -211,8 +215,7 @@ Return the row of the given marker (as a view).
 """
 function getrow(df::DataFrame, markername)
     # create subset of df containing the one row with the same marker name
-    return subset(df, :MarkerName => name -> name .== string(markername),
-        view=true) # not a copy, but a reference
+    return subset(df, :MarkerName => name -> name .== string(markername); view=true) # not a copy, but a reference
 end
 
 """
@@ -232,7 +235,7 @@ Set option `option` for marker `markername` in `filterconfig` to given `value`.
 """
 function setoption(filterconfig::FilterConfig, markername, option, value)
     global row = getrow(filterconfig.df, markername)
-    row[1, option] = value
+    return row[1, option] = value
 end
 
 save(filterconfig::FilterConfig, path::String) = CSV.write(path, filterconfig.df)
@@ -253,7 +256,7 @@ function julia_main()::Cint
     fig = Figure()
 
     # plot for displaying data
-    ax = Axis(fig[1:8, 1:5], xlabel="time in s")
+    ax = Axis(fig[1:8, 1:5]; xlabel="time in s")
 
     # slider for setting filter range
     slider = IntervalSlider(fig[2, 6:8])
@@ -264,28 +267,30 @@ function julia_main()::Cint
     max_value_label = Label(fig[1, 8], "")
 
     # editable text boxes for setting filter range
-    min_value_box = Textbox(fig[3, 6], width=50)
-    max_value_box = Textbox(fig[3, 8], width=50)
+    min_value_box = Textbox(fig[3, 6]; width=50)
+    max_value_box = Textbox(fig[3, 8]; width=50)
     # validators make sure that entered value is an Int and in range
-    min_value_box.validator = str -> begin
-        val = tryparse(Int, str)
-        return val !== nothing && validate_min(val, slider, min_possible)
-    end
-    max_value_box.validator = str -> begin
-        val = tryparse(Int, str)
-        return val !== nothing && validate_max(val, slider, max_possible)
-    end
+    min_value_box.validator =
+        str -> begin
+            val = tryparse(Int, str)
+            return val !== nothing && validate_min(val, slider, min_possible)
+        end
+    max_value_box.validator =
+        str -> begin
+            val = tryparse(Int, str)
+            return val !== nothing && validate_max(val, slider, max_possible)
+        end
 
     # menu for selecting a marker
-    marker_menu = Menu(fig[4:8, 6:8], valign=:top, fontsize = 12)
+    marker_menu = Menu(fig[4:8, 6:8]; valign=:top, fontsize=12)
 
     # Buttons for saving & loading data
-    Label(fig[5, 6], "Marker Data", halign=:right)
-    savebutton_data = Button(fig[5, 7], label="Save Filtered", fontsize=11, halign=:left)
-    loadbutton_data = Button(fig[5, 8], label="Load Raw", fontsize=11, halign=:left)
+    Label(fig[5, 6], "Marker Data"; halign=:right)
+    savebutton_data = Button(fig[5, 7]; label="Save Filtered", fontsize=11, halign=:left)
+    loadbutton_data = Button(fig[5, 8]; label="Load Raw", fontsize=11, halign=:left)
     Label(fig[6, 6], "Filter Configuration")
-    savebutton_config = Button(fig[6, 7], label="Save", fontsize=11, halign=:left)
-    loadbutton_config = Button(fig[6, 8], label="Load", fontsize=11, halign=:left)
+    savebutton_config = Button(fig[6, 7]; label="Save", fontsize=11, halign=:left)
+    loadbutton_config = Button(fig[6, 8]; label="Load", fontsize=11, halign=:left)
 
     #-----------------------------------------------
     #-------------- EVENT HANDLERS -----------------
@@ -303,7 +308,7 @@ function julia_main()::Cint
         notify(filtered_plot_update)
     end
     # handler for loaded data
-    on(data, priority=1000) do data
+    on(data; priority=1000) do data
         x = data.df[!, :Time]
         # ignore first 2 headers as they are Time and Frame
         global markernames = names(data.df)[3:end]
@@ -338,14 +343,14 @@ function julia_main()::Cint
     end
 
     # if no marker is selected, select first one
-    on(marker_menu.selection, priority=999) do _
+    on(marker_menu.selection; priority=999) do _
         if marker_menu.selection[] === nothing
             marker_menu.i_selected[] = 1
             notify(raw_plot_update)
         end
     end
     # after selecting new marker, update raw data plot + slider interval
-    on(marker_menu.selection, priority=-1) do _
+    on(marker_menu.selection; priority=-1) do _
         notify(raw_plot_update)
         min_frq = getoption(filterconfig[], marker_menu.selection[], :MinFrqFFT)
         max_frq = getoption(filterconfig[], marker_menu.selection[], :MaxFrqFFT)
@@ -369,7 +374,7 @@ function julia_main()::Cint
         path = joinpath(save_dialogue("*.trc")...)
         # overwrite because save_dialogue should already warn and ask user about
         # overwrite
-        save(data[], path, overwrite=true, filtered=true)
+        save(data[], path; overwrite=true, filtered=true)
     end
     on(savebutton_config.clicks) do _
         path = joinpath(save_dialogue("*.cfg")...)
@@ -391,17 +396,17 @@ function julia_main()::Cint
     original_y = lift(raw_plot_update) do _
         data[].df[!, marker_menu.selection[]]
     end
-    lines!(ax, x, original_y, label="original data")
+    lines!(ax, x, original_y; label="original data")
 
     # Draw filtered data of selected marker
     filtered_y = lift(filtered_plot_update) do _
         markername = marker_menu.selection[]
         min_frq = getoption(filterconfig[], markername, :MinFrqFFT)
         max_frq = getoption(filterconfig[], markername, :MaxFrqFFT)
-        filter!(data[], markername, min_frq=min_frq[1], max_frq=max_frq)
+        filter!(data[], markername; min_frq=min_frq[1], max_frq=max_frq)
         return data[].filtered_df[!, markername]
     end
-    lines!(ax, x, filtered_y, label="filtered data")
+    lines!(ax, x, filtered_y; label="filtered data")
     axislegend(ax) # draw legend
     @info "Done!"
     while true
