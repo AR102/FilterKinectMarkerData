@@ -55,11 +55,19 @@ jobs:
       # - uses: julia-actions/julia-runtest@v1
 
       # see https://github.com/MakieOrg/Makie.jl/blob/master/.github/workflows/glmakie.yaml
-      - name: Run the tests
+      - name: Run the tests (Ubuntu)
+        if: runner.os = 'Linux'
         id: referencetests
         continue-on-error: true
         run: >
           DISPLAY=:0 xvfb-run -s '-screen 0 1024x768x24' julia --color=yes --project=. -e 'using Pkg; Pkg.test("FilterKinect", coverage=true)'
+      
+      - name: Run the tests (Windows)
+        if: runner.os = 'Windows'
+        id: referencetests
+        continue-on-error: true
+        run: >
+          julia --color=yes --project=. -e 'using Pkg; Pkg.test("FilterKinect", coverage=true)'
 
       - uses: julia-actions/julia-processcoverage@v1
 
