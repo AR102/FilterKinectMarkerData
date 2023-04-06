@@ -56,7 +56,7 @@ jobs:
 
       # see https://github.com/MakieOrg/Makie.jl/blob/master/.github/workflows/glmakie.yaml
       - name: Run the tests (Ubuntu)
-        if: runner.os = 'Linux'
+        if: runner.os == 'Linux'
         id: referencetests
         continue-on-error: true
         run: >
