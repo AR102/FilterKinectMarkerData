@@ -63,7 +63,7 @@ jobs:
           DISPLAY=:0 xvfb-run -s '-screen 0 1024x768x24' julia --color=yes --project=. -e 'using Pkg; Pkg.test("FilterKinect", coverage=true)'
       
       - name: Run the tests (Windows)
-        if: runner.os = 'Windows'
+        if: runner.os == 'Windows'
         id: referencetests
         continue-on-error: true
         run: >
