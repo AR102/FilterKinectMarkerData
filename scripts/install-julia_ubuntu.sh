@@ -1,4 +1,4 @@
-# download and extract Julia if it isn't already at installation location
+# download and extract Julia if it isn't already at installation location 
 # TODO: dependant on being x86_64; make automatic or let user choose?
 if ! [ -d "julia-1.8.5" ] ; then
     # download archive of Julia 1.8.5 if it doesn't exist yet
@@ -13,7 +13,7 @@ fi
 exportLine="export PATH=\"\$PATH:$PWD/julia-1.8.5/bin/\""
 if ! grep -q "$exportLine" ~/.bashrc; then
     echo $exportLine >> ~/.bashrc
-    # reload bash profile
-    # FIXME: doesn't work in script but works when typed by user directly
+    # reload bash profile FIXME: doesn't work in script but works when typed by user
+    # directly
     source ~/.bashrc
 fi

@@ -2,9 +2,9 @@
 
 ## Recompiling the package system image
 
-If you want to recompile the system image of the dependencies, for example
-because you updated a package, then simply delete the current one
-(`FilterKinect.jl/JuliaSysimage.so`) and start the program again.
+If you want to recompile the system image of the dependencies, for example because you
+updated a package, then simply delete the current one (`FilterKinect.jl/JuliaSysimage.so`)
+and start the program again.
 
 ## GLMakie not compiling
 
@@ -20,7 +20,9 @@ libGL error: failed to load driver: swrast
 ERROR: GLFWError (VERSION_UNAVAILABLE): GLX: Failed to create context: GLXBadFBConfig
 ```
 
-This can be resolved by running `export LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libstdc++.so.6` before starting Julia (you may need to replace the path depending on where libstdc++.so.6 is located on your system).
+This can be resolved by running `export LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libstdc++.so.6`
+in a terminal before starting Julia / the program (in the same terminal!) (you may need to
+replace the path depending on where libstdc++.so.6 is located on your system).
 
 ~~For a more permanent solution, see https://github.com/JuliaGL/GLFW.jl/issues/198#issuecomment-1141056514.~~
 
@@ -29,6 +31,7 @@ If you use VSCode, you can add the line
 "julia.persistentSession.shell": "export LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libstdc++.so.6 /bin/sh"
 ```
 to your settings.
+
 Related links:
 - https://github.com/JuliaGL/GLFW.jl/issues/211
 - https://github.com/JuliaGL/GLFW.jl/issues/198#issuecomment-740124490

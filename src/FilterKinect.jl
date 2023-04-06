@@ -54,8 +54,7 @@ function get_header_names(path::String)
     header_names[1:2] = ["Frame", "Time"]
 
     i = 3 # because of Frame and Time
-    # Make MARKERNAME into MARKERNAME_X, MARKERNAME_Y and MARKERNAME_Z for every
-    # marker
+    # Make MARKERNAME into MARKERNAME_X, MARKERNAME_Y and MARKERNAME_Z for every marker
     for name in marker_names
         for appendix in ["_X", "_Y", "_Z"]
             header_names[i] = name * appendix
@@ -111,9 +110,8 @@ end
 
 Save `data` in file at `filepath`. 
 
-`overwrite`: If false and the file already exists or it's a folder, an exception
-will be thrown. If true, the file gets completely overwritten instead.
-The default is false.
+`overwrite`: If false and the file already exists or it's a folder, an exception will be
+thrown. If true, the file gets completely overwritten instead. The default is false.
 """
 function save(data::MarkerData, filepath::String; overwrite=false, filtered=false)
     if !overwrite && (isfile(filepath) || isdir(filepath))
@@ -152,13 +150,11 @@ end
 """
     filter!(data::MarkerData, header_name::String; min_frq=1, max_frq=80)
 
-Filter column `header_name` of `data` by first calculating a frequency 
-representation of the data using FFT and setting every frequency not between 
-`min_frq` and `max_frq` (inclusive) to 0.
-Then the FFT data is reconstructed into an array of real numbers.
+Filter column `header_name` of `data` by first calculating a frequency  representation of
+the data using FFT and setting every frequency not between  `min_frq` and `max_frq`
+(inclusive) to 0. Then the FFT data is reconstructed into an array of real numbers.
 
-This filtered result is written into the corresponding column of 
-data.filtered_df.
+This filtered result is written into the corresponding column of data.filtered_df.
 """
 function filter!(data::MarkerData, header_name::String; min_frq=1, max_frq=80)
     fft_data = rfft(data.df[!, header_name])
@@ -175,8 +171,8 @@ end
 """
     validate_min(value)
 
-Validate that new minimum frequency for filtering `value` is legal (not bigger
-than maximum `slider` currently has and not smaller than `min_possible`).
+Validate that new minimum frequency for filtering `value` is legal (not bigger than maximum
+`slider` currently has and not smaller than `min_possible`).
 """
 function validate_min(value, slider, min_possible)
     _, max_value = to_value(slider.interval)
@@ -186,8 +182,8 @@ end
 """
     validate_max(value)
 
-Validate that new maximum frequency for filtering `value` is legal (not smaller
-than minimum `slider` currently has and not bigger than `max_possible`).
+Validate that new maximum frequency for filtering `value` is legal (not smaller than minimum
+`slider` currently has and not bigger than `max_possible`).
 """
 function validate_max(value, slider, max_possible)
     min_value, _ = to_value(slider.interval)
@@ -316,9 +312,9 @@ function julia_main()::Cint
         min_possible = 1
         # see docs rfft: n_fft = div(n,2) + 1
         max_possible = Int(trunc(length(data.df[!, :Time]) / 2) + 1)
-        # create `filterconfig` for storing individual filtering options for each
-        # marker; this must be before setting marker_menu.i_selected, as that
-        # updates filtered_y etc. which need filterconfig
+        # create `filterconfig` for storing individual filtering options for each marker;
+        # this must be before setting marker_menu.i_selected, as that updates filtered_y
+        # etc. which need filterconfig
         optionnames = ["MinFrqFFT", "MaxFrqFFT"]
         optiontypes = [Int[], Int[]]
         optionvalues = [min_possible, max_possible]
@@ -372,8 +368,7 @@ function julia_main()::Cint
 
     on(savebutton_data.clicks) do _
         path = joinpath(save_dialogue("*.trc")...)
-        # overwrite because save_dialogue should already warn and ask user about
-        # overwrite
+        # overwrite because save_dialogue should already warn and ask user about overwrite
         save(data[], path; overwrite=true, filtered=true)
     end
     on(savebutton_config.clicks) do _
@@ -383,8 +378,8 @@ function julia_main()::Cint
     on(loadbutton_config.clicks) do _
         path = joinpath(load_dialogue("*.cfg")...)
         filterconfig[] = load_filterconfig(path)
-        # notify listeners of marker_menu as it also necesitates getting current
-        # filter config (for current marker)
+        # notify listeners of marker_menu as it also necesitates getting current filter
+        # config (for current marker)
         notify(marker_menu.selection)
     end
 
@@ -414,8 +409,5 @@ function julia_main()::Cint
     end
     return 0 # if things finished successfully
 end
-
-# path = "test/test_file.trc"
-# d = load_markerdata(path)
 
 end
