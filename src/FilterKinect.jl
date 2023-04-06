@@ -79,7 +79,7 @@ function Base.getproperty(obj::MarkerData, sym::Symbol)
     end
 end
 
-function Base.isequal(x::MarkerData, y::MarkerData)
+function Base.:(==)(x::MarkerData, y::MarkerData)
     return x.filehead == y.filehead && x.df == y.df && x.filtered_df == y.filtered_df
 end
 
@@ -135,7 +135,7 @@ function save(data::MarkerData, filepath::String; overwrite=false, filtered=fals
 
     io = open(filepath; write=true, truncate=true, create=true) do io
         # write updated first line
-        CSV.write(io, first_line; writeheader=false, delim='\t')
+        CSV.write(io, first_line; header=false, delim='\t')
         # write rest
         for line in data.filehead[2:end]
             write(io, line * "\n")
