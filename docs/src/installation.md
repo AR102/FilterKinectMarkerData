@@ -22,7 +22,7 @@ Extract the archive.
 Choose a directory and then use 
 
 ```
-git clone https://github.com/AR102/FilterKinect.jl`
+git clone https://github.com/AR102/FilterKinect.jl
 ```
 
 ## 2. Install Julia
